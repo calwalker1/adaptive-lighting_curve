@@ -103,7 +103,7 @@ All of the configuration options are listed below, along with their default valu
 The YAML and frontend configuration methods support all of the options listed below.
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting._docs_helpers import generate_config_markdown_table -->
+<!-- from adaptive_lighting_curve._docs_helpers import generate_config_markdown_table -->
 <!-- print(generate_config_markdown_table()) -->
 <!-- CODE:END -->
 
@@ -193,7 +193,7 @@ adaptive_lighting:
 `adaptive_lighting.apply` applies Adaptive Lighting settings to lights on demand.
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting._docs_helpers import generate_apply_markdown_table -->
+<!-- from adaptive_lighting_curve._docs_helpers import generate_apply_markdown_table -->
 <!-- print(generate_apply_markdown_table()) -->
 <!-- CODE:END -->
 
@@ -215,7 +215,7 @@ adaptive_lighting:
 `adaptive_lighting.set_manual_control` can mark (or unmark) whether a light is "manually controlled", meaning that when a light has `manual_control`, the light is not adapted.
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting._docs_helpers import generate_set_manual_control_markdown_table -->
+<!-- from adaptive_lighting_curve._docs_helpers import generate_set_manual_control_markdown_table -->
 <!-- print(generate_set_manual_control_markdown_table()) -->
 <!-- CODE:END -->
 
@@ -271,7 +271,7 @@ The following keys are disallowed:
     - delay: "01:00:00"
     - condition: template
       value_template: "{{ light in state_attr(switch, 'manual_control') }}"
-    - service: adaptive_lighting.set_manual_control
+    - service: adaptive_lighting_curve.set_manual_control
       data:
         entity_id: "{{ switch }}"
         lights: "{{ light }}"
@@ -325,7 +325,7 @@ iphone_carly_wakeup:
               | join(",")
              ).split(",") | length }}
         sequence:
-          - service: adaptive_lighting.change_switch_settings
+          - service: adaptive_lighting_curve.change_switch_settings
             data:
               entity_id: switch.adaptive_lighting_al_den_ceilingfan_lights
               sunrise_time: '{{ now().strftime("%H:%M:%S") }}'

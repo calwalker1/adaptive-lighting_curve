@@ -26,7 +26,7 @@ By automatically adapting the settings of your lights throughout the day, Adapti
 ## Features
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting.docs_gen import _transform_readme_links -->
+<!-- from adaptive_lighting_curve.docs_gen import _transform_readme_links -->
 <!-- print(_transform_readme_links(include_section("../README.md", "features", strip_heading=True))) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->

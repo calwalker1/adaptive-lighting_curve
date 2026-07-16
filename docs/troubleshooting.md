@@ -9,7 +9,7 @@ This guide covers common issues and their solutions when using Adaptive Lighting
 ## Enable Debug Logging
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting.docs_gen import _transform_readme_links -->
+<!-- from adaptive_lighting_curve.docs_gen import _transform_readme_links -->
 <!-- print(_transform_readme_links(include_section("../README.md", "troubleshooting-intro", strip_heading=True))) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->
@@ -30,7 +30,7 @@ After the issue occurs, create a new issue report with the log (`/config/home-as
 ## Common Problems & Solutions
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting.docs_gen import _transform_readme_links -->
+<!-- from adaptive_lighting_curve.docs_gen import _transform_readme_links -->
 <!-- print(_transform_readme_links(include_section("../README.md", "common-problems", strip_heading=True))) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->

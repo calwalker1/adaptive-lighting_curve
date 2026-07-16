@@ -1,9 +1,8 @@
 {
-  "title": "Adaptive Lighting",
   "config": {
     "step": {
       "user": {
-        "title": "Choose a name for the Adaptive Lighting instance",
+        "title": "Choose a name for the Adaptive Lighting (Curve Test) instance",
         "description": "Every instance can contain multiple lights!",
         "data": {
           "name": "Name"
@@ -18,7 +17,7 @@
       }
     },
     "abort": {
-      "already_configured": "This device is already configured"
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
   },
   "options": {

@@ -33,7 +33,7 @@ adaptive_lighting:
 All configuration options are listed below with their default values. These options work identically in both YAML and the UI.
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting._docs_helpers import generate_config_markdown_table -->
+<!-- from adaptive_lighting_curve._docs_helpers import generate_config_markdown_table -->
 <!-- print(generate_config_markdown_table()) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->
@@ -89,7 +89,7 @@ All configuration options are listed below with their default values. These opti
 ## Full Configuration Example
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting.docs_gen import _transform_readme_links -->
+<!-- from adaptive_lighting_curve.docs_gen import _transform_readme_links -->
 <!-- print(_transform_readme_links(include_section("../README.md", "config-example-full"))) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->

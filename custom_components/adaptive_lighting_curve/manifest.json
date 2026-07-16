@@ -1,0 +1,12 @@
+{
+  "domain": "adaptive_lighting_curve",
+  "name": "Adaptive Lighting (Curve Test)",
+  "codeowners": ["@calwalker1"],
+  "config_flow": true,
+  "dependencies": ["light"],
+  "documentation": "https://github.com/calwalker1/adaptive-lighting_curve#readme",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/calwalker1/adaptive-lighting_curve/issues",
+  "requirements": ["ulid-transform"],
+  "version": "1.31.0"
+}
