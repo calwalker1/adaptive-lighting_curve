@@ -30,7 +30,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["custom_components/adaptive_lighting"]
+packages = ["custom_components/adaptive_lighting_curve"]
 
 [tool.ruff]
 target-version = "py312"

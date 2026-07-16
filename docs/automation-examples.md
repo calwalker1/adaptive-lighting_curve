@@ -7,7 +7,7 @@ icon: lucide/bot
 Real-world automation examples showing how to integrate Adaptive Lighting with your Home Assistant setup.
 
 <!-- CODE:START -->
-<!-- from adaptive_lighting.docs_gen import _transform_readme_links -->
+<!-- from adaptive_lighting_curve.docs_gen import _transform_readme_links -->
 <!-- print(_transform_readme_links(include_section("../README.md", "automation-examples", strip_heading=True))) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->
@@ -28,7 +28,7 @@ Real-world automation examples showing how to integrate Adaptive Lighting with y
     - delay: "01:00:00"
     - condition: template
       value_template: "{{ light in state_attr(switch, 'manual_control') }}"
-    - service: adaptive_lighting.set_manual_control
+    - service: adaptive_lighting_curve.set_manual_control
       data:
         entity_id: "{{ switch }}"
         lights: "{{ light }}"
@@ -82,7 +82,7 @@ iphone_carly_wakeup:
               | join(",")
              ).split(",") | length }}
         sequence:
-          - service: adaptive_lighting.change_switch_settings
+          - service: adaptive_lighting_curve.change_switch_settings
             data:
               entity_id: switch.adaptive_lighting_al_den_ceilingfan_lights
               sunrise_time: '{{ now().strftime("%H:%M:%S") }}'
