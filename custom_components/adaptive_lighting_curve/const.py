@@ -199,31 +199,35 @@ DOCS[CONF_BRIGHTNESS_MODE_TIME_LIGHT] = (
 CONF_COLOR_TEMP_MODE, DEFAULT_COLOR_TEMP_MODE = "color_temp_mode", "default"
 DOCS[CONF_COLOR_TEMP_MODE] = (
     "Color temperature mode to use. `default` reaches `min_color_temp` "
-    "exactly at sunset. `custom` reaches `sunset_color_temp` at sunset instead, "
-    "then ramps down to `min_color_temp` by `sunset_color_temp_delay`/"
-    "`sunset_color_temp_time` — useful in winter when early sunsets make "
-    "the default curve turn fully warm too early. 📈"
+    "exactly at sunset. `custom` reaches `sunset_color_temp` at sunset "
+    "instead and holds there (no further ramping) until "
+    "`sunset_color_temp_delay`/`sunset_color_temp_time`, at which point it "
+    "switches to whatever `default` would normally show — useful in winter "
+    "when early sunsets make the default curve turn fully warm too "
+    "early. 📈"
 )
 CONF_SUNSET_COLOR_TEMP, DEFAULT_SUNSET_COLOR_TEMP = "sunset_color_temp", 2000
 DOCS[CONF_SUNSET_COLOR_TEMP] = (
     "(Ignored if `color_temp_mode='default'`) Color temperature in Kelvin "
-    "to reach exactly at sunset, before continuing on to `min_color_temp`. 🌇"
+    "to reach exactly at sunset and hold until the hold ends. 🌇"
 )
 CONF_SUNSET_COLOR_TEMP_DELAY, DEFAULT_SUNSET_COLOR_TEMP_DELAY = (
     "sunset_color_temp_delay",
     0,
 )
 DOCS[CONF_SUNSET_COLOR_TEMP_DELAY] = (
-    "(Ignored if `color_temp_mode='default'`) Duration in seconds after sunset "
-    "at which `min_color_temp` is reached. Takes priority over "
-    "`sunset_color_temp_time` if both are set. Set to `0` to use "
-    "`sunset_color_temp_time` instead. ⏲️"
+    "(Ignored if `color_temp_mode='default'`) Duration in seconds after "
+    "sunset at which the `sunset_color_temp` hold ends and Adaptive "
+    "Lighting switches over to its normal color temperature. Takes "
+    "priority over `sunset_color_temp_time` if both are set. Set to `0` to "
+    "use `sunset_color_temp_time` instead. ⏲️"
 )
 CONF_SUNSET_COLOR_TEMP_TIME = "sunset_color_temp_time"
 DOCS[CONF_SUNSET_COLOR_TEMP_TIME] = (
     "(Ignored if `color_temp_mode='default'` or `sunset_color_temp_delay` is "
-    "set) Set a fixed clock time (HH:MM:SS) at which `min_color_temp` is "
-    "reached. 🌇"
+    "set) Set a fixed clock time (HH:MM:SS) at which the `sunset_color_temp` "
+    "hold ends and Adaptive Lighting switches over to its normal color "
+    "temperature. 🌇"
 )
 
 CONF_TAKE_OVER_CONTROL, DEFAULT_TAKE_OVER_CONTROL = "take_over_control", True

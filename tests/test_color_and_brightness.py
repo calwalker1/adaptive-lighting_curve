@@ -289,7 +289,14 @@ def test_custom_curve_holds_min_color_temp_after_completion(tzinfo_and_location)
     assert ct == 2000
 
 
-def test_custom_curve_midpoint_is_interpolated(tzinfo_and_location):
+def test_custom_curve_holds_flat_before_completion(tzinfo_and_location):
+    """Between sunset and the completion time, the value should stay flat.
+
+    Previously this ramped linearly across the whole window; the curve now
+    holds at `sunset_color_temp` and only switches over to the normal value
+    once the completion time/delay is reached, so Home Assistant's own
+    adaptation `transition` handles making that switch-over smooth.
+    """
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
@@ -301,7 +308,7 @@ def test_custom_curve_midpoint_is_interpolated(tzinfo_and_location):
     midpoint = dt.datetime.combine(date, dt.time(19, 15), tzinfo=tzinfo)
     sun_position = settings.sun.sun_position(midpoint)
     ct = settings.color_temp_kelvin(midpoint, sun_position)
-    assert abs(ct - 2500) <= 5
+    assert abs(ct - 3000) <= 5
 
 
 def test_custom_curve_delay_takes_priority_over_time(tzinfo_and_location):
@@ -353,3 +360,37 @@ def test_default_color_temp_mode_is_unchanged(tzinfo_and_location):
     # In default mode, `min_color_temp` (not `sunset_color_temp`) is reached
     # exactly at sunset.
     assert ct == 2000
+
+
+def test_custom_curve_after_completion_honors_adapt_until_sleep(
+    tzinfo_and_location,
+):
+    """After the hold ends, custom mode should hand off to the real default
+    curve, including its `adapt_until_sleep` behavior, not a hardcoded
+    `min_color_temp`.
+    """
+    tzinfo, location = tzinfo_and_location
+    settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        sunset_color_temp_time=dt.time(21, 0),
+        adapt_until_sleep=True,
+        sleep_color_temp=1000,
+    )
+    date = dt.datetime(2026, 1, 15).date()
+    # Well after the 21:00 completion time, adapt_until_sleep should have
+    # continued shifting color temp down toward sleep_color_temp (1000),
+    # below the plain min_color_temp (2000) that would apply without it.
+    late = dt.datetime.combine(date, dt.time(23, 55), tzinfo=tzinfo)
+    sun_position = settings.sun.sun_position(late)
+    ct = settings.color_temp_kelvin(late, sun_position)
+    default_settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode="default",
+        adapt_until_sleep=True,
+        sleep_color_temp=1000,
+    )
+    expected = default_settings.color_temp_kelvin(late, sun_position)
+    assert ct == expected
+    assert ct < 2000
