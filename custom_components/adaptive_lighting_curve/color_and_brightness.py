@@ -225,7 +225,7 @@ class SunLightSettings:
     brightness_mode_time_dark: datetime.timedelta
     brightness_mode_time_light: datetime.timedelta
     brightness_mode: Literal["default", "linear", "tanh"] = "default"
-    color_temp_mode: Literal["default", "custom"] = "default"
+    color_temp_mode: Literal["default", "fade", "snap"] = "default"
     sunset_color_temp: int = 2000
     sunset_color_temp_delay: datetime.timedelta = datetime.timedelta()
     sunset_color_temp_time: datetime.time | None = None
@@ -333,7 +333,7 @@ class SunLightSettings:
         sun_position: float,
     ) -> int:
         """Calculate the color temperature in Kelvin."""
-        if self.color_temp_mode == "custom":
+        if self.color_temp_mode in ("fade", "snap"):
             return self._color_temp_kelvin_custom(dt, sun_position)
         return self._color_temp_kelvin_default(sun_position)
 
@@ -388,18 +388,23 @@ class SunLightSettings:
         dt: datetime.datetime,
         sun_position: float,
     ) -> int:
-        """Calculate the color temperature in Kelvin using the custom sunset curve.
+        """Calculate the color temperature in Kelvin using a custom sunset curve.
 
         Reaches `sunset_color_temp` exactly at sunset (instead of
-        `min_color_temp`) and *holds* at that value (no further ramping)
-        until `sunset_color_temp_delay`/`sunset_color_temp_time`. At that
-        point it switches over to whatever the normal/default Adaptive
-        Lighting curve would compute for the current moment (respecting
-        `adapt_until_sleep` if enabled). Home Assistant's own periodic
-        adaptation `transition` then makes that switch-over smooth on the
-        light itself, rather than this function ramping the value over the
-        whole hold window. Sunrise/daytime behavior (other than the value
-        reached exactly at sunset) is unchanged.
+        `min_color_temp`). From there to
+        `sunset_color_temp_delay`/`sunset_color_temp_time`:
+
+        - `color_temp_mode: "snap"` holds flat at `sunset_color_temp`, then
+          jumps straight to whatever the normal/default curve would show at
+          that instant. Home Assistant's own periodic adaptation
+          `transition` is what makes that jump look smooth on the light.
+        - `color_temp_mode: "fade"` ramps linearly from `sunset_color_temp`
+          to whatever the normal/default curve *will* show once the hold
+          ends, so the change is spread across the whole window instead of
+          happening all at once.
+
+        Either way, both `adapt_until_sleep` and sunrise/daytime behavior
+        (other than the value reached exactly at sunset) are unaffected.
         """
         if sun_position > 0:
             event, _ = self.sun.closest_event(dt)
@@ -417,12 +422,25 @@ class SunLightSettings:
             return self._color_temp_kelvin_default(sun_position)
         sunset_ts, midnight_ts = prev_ts, next_ts
         completion_ts = self._sunset_color_temp_completion_ts(sunset_ts, midnight_ts)
-        if dt.timestamp() >= completion_ts:
-            # Hold is over: hand off to whatever Adaptive Lighting would
-            # normally compute right now (min_color_temp, or further along
-            # the adapt_until_sleep curve if that's enabled).
+        target_ts = dt.timestamp()
+        if target_ts >= completion_ts:
+            # Hold/fade is over: hand off to whatever Adaptive Lighting
+            # would normally compute right now (min_color_temp, or further
+            # along the adapt_until_sleep curve if that's enabled).
             return self._color_temp_kelvin_default(sun_position)
-        # Still within the hold window: stay flat at sunset_color_temp.
+        if self.color_temp_mode == "fade":
+            completion_dt = datetime.datetime.fromtimestamp(completion_ts, tz=UTC)
+            completion_sun_position = self.sun.sun_position(completion_dt)
+            end_value = self._color_temp_kelvin_default(completion_sun_position)
+            ct = lerp(
+                target_ts,
+                x1=sunset_ts,
+                x2=completion_ts,
+                y1=self.sunset_color_temp,
+                y2=end_value,
+            )
+            return 5 * round(ct / 5)  # round to nearest 5
+        # "snap": still within the hold window, stay flat at sunset_color_temp.
         return 5 * round(self.sunset_color_temp / 5)  # round to nearest 5
 
     def brightness_and_color(
@@ -440,7 +458,7 @@ class SunLightSettings:
             color_temp_kelvin = self.sleep_color_temp
             rgb_color = self.sleep_rgb_color
         elif (
-            self.color_temp_mode != "custom"
+            self.color_temp_mode == "default"
             and self.sleep_rgb_or_color_temp == "rgb_color"
             and self.adapt_until_sleep
             and sun_position < 0
@@ -449,9 +467,10 @@ class SunLightSettings:
             # https://github.com/basnijholt/adaptive-lighting/issues/624
             # This will result in a perceptible jump in color at sunset and sunrise
             # because the `color_temperature_to_rgb` function is not 100% accurate.
-            # Not used in `color_temp_mode: custom`: its sunset hold/handoff
-            # logic is time-based, not derived from `sun_position` directly,
-            # so it can't feed into this `sun_position`-based RGB lerp.
+            # Not used in `color_temp_mode: "fade"/"snap"`: their sunset
+            # hold/handoff logic is time-based, not derived from
+            # `sun_position` directly, so it can't feed into this
+            # `sun_position`-based RGB lerp.
             min_color_rgb = color_temperature_to_rgb(self.min_color_temp)
             rgb_color = lerp_color_hsv(
                 min_color_rgb,

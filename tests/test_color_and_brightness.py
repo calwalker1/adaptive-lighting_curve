@@ -213,9 +213,9 @@ def test_closest_event(tzinfo_and_location):
 def _custom_curve_settings(tzinfo, location, **overrides):
     """Build a `SunLightSettings` with a fixed 17:30 sunset/06:00 sunrise.
 
-    Defaults to `color_temp_mode="custom"` with `sunset_color_temp=3000` and
+    Defaults to `color_temp_mode="snap"` with `sunset_color_temp=3000` and
     `min_color_temp=2000`, so tests only need to override what they're
-    exercising (the completion delay/time).
+    exercising (the mode, completion delay/time, etc).
     """
     defaults = {
         "name": "test",
@@ -237,7 +237,7 @@ def _custom_curve_settings(tzinfo, location, **overrides):
         "max_sunset_time": None,
         "brightness_mode_time_dark": dt.timedelta(seconds=900),
         "brightness_mode_time_light": dt.timedelta(seconds=3600),
-        "color_temp_mode": "custom",
+        "color_temp_mode": "snap",
         "sunset_color_temp": 3000,
         "timezone": tzinfo,
     }
@@ -245,11 +245,16 @@ def _custom_curve_settings(tzinfo, location, **overrides):
     return SunLightSettings(**defaults)
 
 
-def test_custom_curve_reaches_sunset_color_temp_at_sunset(tzinfo_and_location):
+@pytest.mark.parametrize("mode", ["fade", "snap"])
+def test_custom_curve_reaches_sunset_color_temp_at_sunset(
+    tzinfo_and_location,
+    mode,
+):
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode=mode,
         sunset_color_temp_time=dt.time(21, 0),
     )
     date = dt.datetime(2026, 1, 15).date()
@@ -259,13 +264,16 @@ def test_custom_curve_reaches_sunset_color_temp_at_sunset(tzinfo_and_location):
     assert abs(ct - 3000) <= 5
 
 
+@pytest.mark.parametrize("mode", ["fade", "snap"])
 def test_custom_curve_reaches_min_color_temp_at_completion_time(
     tzinfo_and_location,
+    mode,
 ):
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode=mode,
         sunset_color_temp_time=dt.time(21, 0),
     )
     date = dt.datetime(2026, 1, 15).date()
@@ -275,11 +283,16 @@ def test_custom_curve_reaches_min_color_temp_at_completion_time(
     assert ct == 2000
 
 
-def test_custom_curve_holds_min_color_temp_after_completion(tzinfo_and_location):
+@pytest.mark.parametrize("mode", ["fade", "snap"])
+def test_custom_curve_holds_min_color_temp_after_completion(
+    tzinfo_and_location,
+    mode,
+):
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode=mode,
         sunset_color_temp_time=dt.time(21, 0),
     )
     date = dt.datetime(2026, 1, 15).date()
@@ -289,18 +302,13 @@ def test_custom_curve_holds_min_color_temp_after_completion(tzinfo_and_location)
     assert ct == 2000
 
 
-def test_custom_curve_holds_flat_before_completion(tzinfo_and_location):
-    """Between sunset and the completion time, the value should stay flat.
-
-    Previously this ramped linearly across the whole window; the curve now
-    holds at `sunset_color_temp` and only switches over to the normal value
-    once the completion time/delay is reached, so Home Assistant's own
-    adaptation `transition` handles making that switch-over smooth.
-    """
+def test_snap_mode_holds_flat_before_completion(tzinfo_and_location):
+    """`snap` mode should stay flat between sunset and the completion time."""
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode="snap",
         sunset_color_temp_time=dt.time(21, 0),
     )
     date = dt.datetime(2026, 1, 15).date()
@@ -311,11 +319,30 @@ def test_custom_curve_holds_flat_before_completion(tzinfo_and_location):
     assert abs(ct - 3000) <= 5
 
 
-def test_custom_curve_delay_takes_priority_over_time(tzinfo_and_location):
+def test_fade_mode_interpolates_before_completion(tzinfo_and_location):
+    """`fade` mode should ramp linearly between sunset and completion."""
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode="fade",
+        sunset_color_temp_time=dt.time(21, 0),
+    )
+    date = dt.datetime(2026, 1, 15).date()
+    # Halfway between 17:30 sunset and 21:00 completion is 19:15.
+    midpoint = dt.datetime.combine(date, dt.time(19, 15), tzinfo=tzinfo)
+    sun_position = settings.sun.sun_position(midpoint)
+    ct = settings.color_temp_kelvin(midpoint, sun_position)
+    assert abs(ct - 2500) <= 5
+
+
+@pytest.mark.parametrize("mode", ["fade", "snap"])
+def test_custom_curve_delay_takes_priority_over_time(tzinfo_and_location, mode):
+    tzinfo, location = tzinfo_and_location
+    settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode=mode,
         sunset_color_temp_delay=dt.timedelta(minutes=90),
         # Should be ignored since delay is set and > 0.
         sunset_color_temp_time=dt.time(23, 0),
@@ -327,12 +354,14 @@ def test_custom_curve_delay_takes_priority_over_time(tzinfo_and_location):
     assert ct == 2000
 
 
-def test_custom_curve_morning_is_unaffected(tzinfo_and_location):
+@pytest.mark.parametrize("mode", ["fade", "snap"])
+def test_custom_curve_morning_is_unaffected(tzinfo_and_location, mode):
     """The custom sunset curve should not change the sunrise->noon ramp."""
     tzinfo, location = tzinfo_and_location
     custom = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode=mode,
         sunset_color_temp_time=dt.time(21, 0),
     )
     default = _custom_curve_settings(
@@ -362,17 +391,20 @@ def test_default_color_temp_mode_is_unchanged(tzinfo_and_location):
     assert ct == 2000
 
 
+@pytest.mark.parametrize("mode", ["fade", "snap"])
 def test_custom_curve_after_completion_honors_adapt_until_sleep(
     tzinfo_and_location,
+    mode,
 ):
-    """After the hold ends, custom mode should hand off to the real default
-    curve, including its `adapt_until_sleep` behavior, not a hardcoded
-    `min_color_temp`.
+    """After the hold/fade ends, custom modes should hand off to the real
+    default curve, including its `adapt_until_sleep` behavior, not a
+    hardcoded `min_color_temp`.
     """
     tzinfo, location = tzinfo_and_location
     settings = _custom_curve_settings(
         tzinfo,
         location,
+        color_temp_mode=mode,
         sunset_color_temp_time=dt.time(21, 0),
         adapt_until_sleep=True,
         sleep_color_temp=1000,
@@ -392,5 +424,38 @@ def test_custom_curve_after_completion_honors_adapt_until_sleep(
         sleep_color_temp=1000,
     )
     expected = default_settings.color_temp_kelvin(late, sun_position)
+    assert ct == expected
+    assert ct < 2000
+
+
+def test_fade_mode_end_value_respects_adapt_until_sleep(tzinfo_and_location):
+    """`fade` mode should ramp toward the value default *will* show at the
+    completion instant (not always toward `min_color_temp`), so the fade
+    lands smoothly even when `adapt_until_sleep` has already moved the
+    default curve past `min_color_temp` by the time the fade completes.
+    """
+    tzinfo, location = tzinfo_and_location
+    settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode="fade",
+        # A late completion time so adapt_until_sleep has room to move the
+        # default curve well past min_color_temp by then.
+        sunset_color_temp_time=dt.time(23, 30),
+        adapt_until_sleep=True,
+        sleep_color_temp=1000,
+    )
+    date = dt.datetime(2026, 1, 15).date()
+    completion = dt.datetime.combine(date, dt.time(23, 30), tzinfo=tzinfo)
+    sun_position = settings.sun.sun_position(completion)
+    ct = settings.color_temp_kelvin(completion, sun_position)
+    default_settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode="default",
+        adapt_until_sleep=True,
+        sleep_color_temp=1000,
+    )
+    expected = default_settings.color_temp_kelvin(completion, sun_position)
     assert ct == expected
     assert ct < 2000
