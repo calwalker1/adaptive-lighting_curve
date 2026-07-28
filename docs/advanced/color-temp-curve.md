@@ -93,4 +93,56 @@ adaptive_lighting:
     sunset_color_temp_delay: 5400  # fade to normal over 90 minutes after sunset
 ```
 
+## Turning the Curve On and Off
+
+Each Adaptive Lighting configuration gets a `switch.adaptive_lighting_custom_curve_<name>`
+entity (using "living_room" as an example: `switch.adaptive_lighting_custom_curve_living_room`).
+
+| Switch state | Curve used |
+|--------------|------------|
+| `on` (default) | The configured `color_temp_mode` (`fade`, `snap`, or `default`) |
+| `off` | `default`, regardless of what `color_temp_mode` is set to |
+
+Toggling the switch adapts your lights straight away (using the normal
+`transition`) rather than waiting for the next `interval`. It does *not*
+rewrite your configuration — `color_temp_mode` is untouched, so turning the
+switch back on restores the curve. Lights you've taken manual control of
+stay manually controlled.
+
+If `color_temp_mode` is `default`, the switch has nothing to toggle and
+turning it on changes nothing.
+
+Like the other switches, its state survives a restart of Home Assistant, and
+it defaults to `on` the first time it is created.
+
+### Example: only use the custom curve on work days
+
+Snap to fully warm at 9 PM when you're working the next day, but use the
+normal curve otherwise (so an early sunset means early warm light).
+
+```yaml
+automation:
+  - alias: "Custom color curve on work evenings only"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.workday_tomorrow
+      - trigger: homeassistant
+        event: start
+    actions:
+      - action: "switch.turn_{{ 'on' if is_state('binary_sensor.workday_tomorrow', 'on') else 'off' }}"
+        target:
+          entity_id: switch.adaptive_lighting_custom_curve_living_room
+```
+
+Any other condition works the same way — a `input_boolean.working_from_home`,
+a work calendar, a person tracker, and so on.
+
+!!! note "Changing the mode itself"
+    The switch only chooses between your configured mode and `default`. To
+    swap between `fade` and `snap` (or change `sunset_color_temp`) from an
+    automation, call the
+    [`adaptive_lighting.change_switch_settings`](../services.md) service
+    instead. Those changes are not written to your config and reset on
+    restart.
+
 See the [Configuration](../configuration.md) page for the full options table.

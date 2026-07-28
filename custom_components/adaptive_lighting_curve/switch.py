@@ -134,10 +134,12 @@ from .const import (
     CONF_TRANSITION,
     CONF_TURN_ON_LIGHTS,
     CONF_USE_DEFAULTS,
+    CUSTOM_CURVE_SWITCH,
     DOMAIN,
     EXTRA_VALIDATION,
     ICON_BRIGHTNESS,
     ICON_COLOR_TEMP,
+    ICON_CUSTOM_CURVE,
     ICON_MAIN,
     ICON_SLEEP,
     SERVICE_APPLY,
@@ -428,6 +430,13 @@ async def async_setup_entry(  # noqa: PLR0915
         config_entry=config_entry,
         icon=ICON_BRIGHTNESS,
     )
+    custom_curve_switch = SimpleSwitch(
+        which="Custom Curve",
+        initial_state=True,
+        hass=hass,
+        config_entry=config_entry,
+        icon=ICON_CUSTOM_CURVE,
+    )
     switch = AdaptiveSwitch(
         hass,
         config_entry,
@@ -435,15 +444,23 @@ async def async_setup_entry(  # noqa: PLR0915
         sleep_mode_switch,
         adapt_color_switch,
         adapt_brightness_switch,
+        custom_curve_switch,
     )
 
     data[config_entry.entry_id][SLEEP_MODE_SWITCH] = sleep_mode_switch
     data[config_entry.entry_id][ADAPT_COLOR_SWITCH] = adapt_color_switch
     data[config_entry.entry_id][ADAPT_BRIGHTNESS_SWITCH] = adapt_brightness_switch
+    data[config_entry.entry_id][CUSTOM_CURVE_SWITCH] = custom_curve_switch
     data[config_entry.entry_id][SWITCH_DOMAIN] = switch
 
     async_add_entities(
-        [sleep_mode_switch, adapt_color_switch, adapt_brightness_switch, switch],
+        [
+            sleep_mode_switch,
+            adapt_color_switch,
+            adapt_brightness_switch,
+            custom_curve_switch,
+            switch,
+        ],
         update_before_add=True,
     )
 
@@ -852,6 +869,7 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
         sleep_mode_switch: SimpleSwitch,
         adapt_color_switch: SimpleSwitch,
         adapt_brightness_switch: SimpleSwitch,
+        custom_curve_switch: SimpleSwitch,
     ) -> None:
         """Initialize the Adaptive Lighting switch."""
         # Set attributes that can't be modified during runtime
@@ -861,6 +879,7 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
         self.sleep_mode_switch = sleep_mode_switch
         self.adapt_color_switch = adapt_color_switch
         self.adapt_brightness_switch = adapt_brightness_switch
+        self.custom_curve_switch = custom_curve_switch
 
         data = validate(config_entry)
 
@@ -1071,7 +1090,13 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
             action=self._sleep_mode_switch_state_event_action,
         )
 
-        self.remove_listeners.append(remove_sleep)
+        remove_custom_curve = async_track_state_change_event(
+            self.hass,
+            entity_ids=self.custom_curve_switch.entity_id,
+            action=self._custom_curve_switch_state_event_action,
+        )
+
+        self.remove_listeners.extend([remove_sleep, remove_custom_curve])
         self._expand_light_groups()
 
     def _update_time_interval_listener(self) -> None:
@@ -1244,6 +1269,7 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
         self._settings = self._sun_light_settings.get_settings(
             self.sleep_mode_switch.is_on,
             transition,
+            self.custom_curve_switch.is_on,
         )
 
         # Build service data.
@@ -1442,6 +1468,7 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
             self._sun_light_settings.get_settings(
                 self.sleep_mode_switch.is_on,
                 transition,
+                self.custom_curve_switch.is_on,
             ),
         )
         self.async_write_ha_state()
@@ -1603,6 +1630,26 @@ class AdaptiveSwitch(SwitchEntity, RestoreEntity):
         await self._update_attrs_and_maybe_adapt_lights(
             context=self.create_context("sleep", parent=event.context),
             transition=self._sleep_transition,
+            force=True,
+        )
+
+    async def _custom_curve_switch_state_event_action(
+        self,
+        event: Event[EventStateChangedData],
+    ) -> None:
+        if not _is_state_event(event, (STATE_ON, STATE_OFF)):
+            _LOGGER.debug("%s: Ignoring custom curve event %s", self._name, event)
+            return
+        _LOGGER.debug(
+            "%s: _custom_curve_switch_state_event_action, event: '%s'",
+            self._name,
+            event,
+        )
+        # Unlike "sleep mode", manually controlled lights stay manually
+        # controlled: this only swaps which color temperature curve is used.
+        await self._update_attrs_and_maybe_adapt_lights(
+            context=self.create_context("custom_curve", parent=event.context),
+            transition=self._transition,
             force=True,
         )
 

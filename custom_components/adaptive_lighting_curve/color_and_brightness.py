@@ -327,13 +327,27 @@ class SunLightSettings:
             return self._brightness_pct_tanh(dt)
         return None
 
+    def active_color_temp_mode(
+        self,
+        use_custom_curve: bool,
+    ) -> Literal["default", "fade", "snap"]:
+        """Return the color temp mode in effect, honoring the custom curve toggle.
+
+        `use_custom_curve` is `False` when the "Custom Curve" switch is off, which
+        temporarily reverts to the `default` curve regardless of the configuration.
+        """
+        if not use_custom_curve:
+            return "default"
+        return self.color_temp_mode
+
     def color_temp_kelvin(
         self,
         dt: datetime.datetime,
         sun_position: float,
+        use_custom_curve: bool = True,
     ) -> int:
         """Calculate the color temperature in Kelvin."""
-        if self.color_temp_mode in ("fade", "snap"):
+        if self.active_color_temp_mode(use_custom_curve) in ("fade", "snap"):
             return self._color_temp_kelvin_custom(dt, sun_position)
         return self._color_temp_kelvin_default(sun_position)
 
@@ -447,6 +461,7 @@ class SunLightSettings:
         self,
         dt: datetime.datetime,
         is_sleep: bool,
+        use_custom_curve: bool = True,
     ) -> dict[str, Any]:
         """Calculate the brightness and color."""
         sun_position = self.sun.sun_position(dt)
@@ -458,7 +473,7 @@ class SunLightSettings:
             color_temp_kelvin = self.sleep_color_temp
             rgb_color = self.sleep_rgb_color
         elif (
-            self.color_temp_mode == "default"
+            self.active_color_temp_mode(use_custom_curve) == "default"
             and self.sleep_rgb_or_color_temp == "rgb_color"
             and self.adapt_until_sleep
             and sun_position < 0
@@ -477,10 +492,18 @@ class SunLightSettings:
                 self.sleep_rgb_color,
                 sun_position,
             )
-            color_temp_kelvin = self.color_temp_kelvin(dt, sun_position)
+            color_temp_kelvin = self.color_temp_kelvin(
+                dt,
+                sun_position,
+                use_custom_curve,
+            )
             force_rgb_color = True
         else:
-            color_temp_kelvin = self.color_temp_kelvin(dt, sun_position)
+            color_temp_kelvin = self.color_temp_kelvin(
+                dt,
+                sun_position,
+                use_custom_curve,
+            )
             r, g, b = color_temperature_to_rgb(color_temp_kelvin)
             rgb_color = (round(r), round(g), round(b))
         # backwards compatibility for versions < 1.3.1 - see #403
@@ -502,13 +525,14 @@ class SunLightSettings:
         self,
         is_sleep: bool,
         transition: float | None,
+        use_custom_curve: bool = True,
     ) -> dict[str, float | int | tuple[float, float] | tuple[float, float, float]]:
         """Get all light settings.
 
         Calculating all values takes <0.5ms.
         """
         dt = utcnow() + timedelta(seconds=transition or 0)
-        return self.brightness_and_color(dt, is_sleep)
+        return self.brightness_and_color(dt, is_sleep, use_custom_curve)
 
 
 def find_a_b(x1: float, x2: float, y1: float, y2: float) -> tuple[float, float]:

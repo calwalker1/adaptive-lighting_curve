@@ -459,3 +459,76 @@ def test_fade_mode_end_value_respects_adapt_until_sleep(tzinfo_and_location):
     expected = default_settings.color_temp_kelvin(completion, sun_position)
     assert ct == expected
     assert ct < 2000
+
+
+@pytest.mark.parametrize("mode", ["fade", "snap"])
+def test_use_custom_curve_false_falls_back_to_default(tzinfo_and_location, mode):
+    """`use_custom_curve=False` (the "Custom Curve" switch turned off) should
+    produce exactly the `default` curve, without changing the configuration.
+    """
+    tzinfo, location = tzinfo_and_location
+    settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode=mode,
+        sunset_color_temp_time=dt.time(21, 0),
+    )
+    default_settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode="default",
+    )
+    date = dt.datetime(2026, 1, 15).date()
+    for time in [dt.time(8, 0), dt.time(17, 30), dt.time(19, 15), dt.time(23, 30)]:
+        when = dt.datetime.combine(date, time, tzinfo=tzinfo)
+        sun_position = settings.sun.sun_position(when)
+        assert settings.color_temp_kelvin(
+            when,
+            sun_position,
+            use_custom_curve=False,
+        ) == default_settings.color_temp_kelvin(when, sun_position)
+    # Sanity check: with the switch on, the curve does differ during the hold.
+    hold = dt.datetime.combine(date, dt.time(19, 15), tzinfo=tzinfo)
+    sun_position = settings.sun.sun_position(hold)
+    assert settings.color_temp_kelvin(
+        hold,
+        sun_position,
+        use_custom_curve=True,
+    ) != default_settings.color_temp_kelvin(hold, sun_position)
+
+
+@pytest.mark.parametrize("mode", ["default", "fade", "snap"])
+def test_active_color_temp_mode(tzinfo_and_location, mode):
+    tzinfo, location = tzinfo_and_location
+    settings = _custom_curve_settings(tzinfo, location, color_temp_mode=mode)
+    assert settings.active_color_temp_mode(use_custom_curve=True) == mode
+    assert settings.active_color_temp_mode(use_custom_curve=False) == "default"
+
+
+def test_use_custom_curve_false_restores_rgb_color_bypass(tzinfo_and_location):
+    """The `sleep_rgb_or_color_temp="rgb_color"` + `adapt_until_sleep` RGB lerp
+    is skipped in `fade`/`snap`; turning the custom curve off should bring it
+    back, just like configuring `color_temp_mode="default"` does.
+    """
+    tzinfo, location = tzinfo_and_location
+    kwargs = {
+        "sleep_rgb_or_color_temp": "rgb_color",
+        "adapt_until_sleep": True,
+        "sunset_color_temp_time": dt.time(21, 0),
+    }
+    settings = _custom_curve_settings(
+        tzinfo,
+        location,
+        color_temp_mode="snap",
+        **kwargs,
+    )
+    date = dt.datetime(2026, 1, 15).date()
+    after_sunset = dt.datetime.combine(date, dt.time(19, 15), tzinfo=tzinfo)
+    with_curve = settings.brightness_and_color(after_sunset, is_sleep=False)
+    assert not with_curve["force_rgb_color"]
+    without_curve = settings.brightness_and_color(
+        after_sunset,
+        is_sleep=False,
+        use_custom_curve=False,
+    )
+    assert without_curve["force_rgb_color"]

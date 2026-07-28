@@ -34,6 +34,7 @@ from homeassistant.components.adaptive_lighting_curve.const import (
     CONF_BRIGHTNESS_MODE,
     CONF_BRIGHTNESS_MODE_TIME_DARK,
     CONF_BRIGHTNESS_MODE_TIME_LIGHT,
+    CONF_COLOR_TEMP_MODE,
     CONF_DETECT_NON_HA_CHANGES,
     CONF_INITIAL_TRANSITION,
     CONF_MANUAL_CONTROL,
@@ -45,12 +46,15 @@ from homeassistant.components.adaptive_lighting_curve.const import (
     CONF_SLEEP_RGB_OR_COLOR_TEMP,
     CONF_SUNRISE_OFFSET,
     CONF_SUNRISE_TIME,
+    CONF_SUNSET_COLOR_TEMP,
+    CONF_SUNSET_COLOR_TEMP_DELAY,
     CONF_SUNSET_TIME,
     CONF_TAKE_OVER_CONTROL,
     CONF_TAKE_OVER_CONTROL_MODE,
     CONF_TRANSITION,
     CONF_TURN_ON_LIGHTS,
     CONF_USE_DEFAULTS,
+    CUSTOM_CURVE_SWITCH,
     DEFAULT_MAX_BRIGHTNESS,
     DEFAULT_NAME,
     DEFAULT_SLEEP_BRIGHTNESS,
@@ -397,12 +401,13 @@ async def test_adaptive_lighting_switches(hass):
     """Test switches created for adaptive_lighting_curve integration."""
     entry, switch = await setup_switch(hass, {})
 
-    assert len(hass.states.async_entity_ids(SWITCH_DOMAIN)) == 4
+    assert len(hass.states.async_entity_ids(SWITCH_DOMAIN)) == 5
     assert set(hass.states.async_entity_ids(SWITCH_DOMAIN)) == {
         switch.entity_id,
         switch.sleep_mode_switch.entity_id,
         switch.adapt_color_switch.entity_id,
         switch.adapt_brightness_switch.entity_id,
+        switch.custom_curve_switch.entity_id,
     }
     assert ATTR_ADAPTIVE_LIGHTING_MANAGER in hass.data[DOMAIN]
     assert entry.entry_id in hass.data[DOMAIN]
@@ -413,9 +418,10 @@ async def test_adaptive_lighting_switches(hass):
     assert SWITCH_DOMAIN in data
     assert ADAPT_COLOR_SWITCH in data
     assert ADAPT_BRIGHTNESS_SWITCH in data
+    assert CUSTOM_CURVE_SWITCH in data
     assert UNDO_UPDATE_LISTENER in data
 
-    assert len(data.keys()) == 5
+    assert len(data.keys()) == 6
 
 
 def async_process_ha_core_config(hass, config):
@@ -1504,6 +1510,7 @@ async def test_restore_off_state(hass, state):
             (switch.sleep_mode_switch, False),
             (switch.adapt_brightness_switch, True),
             (switch.adapt_color_switch, True),
+            (switch.custom_curve_switch, True),
         ]:
             if state == STATE_ON:
                 assert _switch.is_on
@@ -3235,3 +3242,79 @@ async def test_detect_non_ha_changes_with_separate_turn_on_commands(hass):
     assert (
         light.brightness == manual_brightness
     ), f"AL overrode manual brightness {manual_brightness} with {al_brightness}"
+
+
+async def test_custom_curve_switch(hass):
+    """The "Custom Curve" switch toggles the configured `color_temp_mode`."""
+    _, switch = await setup_switch(
+        hass,
+        {
+            CONF_SUNRISE_TIME: datetime.time(SUNRISE.hour),
+            CONF_SUNSET_TIME: datetime.time(SUNSET.hour),
+            CONF_COLOR_TEMP_MODE: "snap",
+            CONF_SUNSET_COLOR_TEMP: 3000,
+            CONF_SUNSET_COLOR_TEMP_DELAY: datetime.timedelta(hours=2),
+            CONF_MIN_COLOR_TEMP: 2000,
+        },
+    )
+    # Enabled by default, so the configured curve applies out of the box.
+    assert switch.custom_curve_switch.is_on
+
+    context = switch.create_context("test")
+    sunset = SUNSET.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE).astimezone(dt_util.UTC)
+    during_hold = sunset + datetime.timedelta(hours=1)
+
+    async def color_temp_at(time):
+        with patch(
+            "homeassistant.components.adaptive_lighting_curve.color_and_brightness.utcnow",
+            return_value=time,
+        ):
+            await switch._update_attrs_and_maybe_adapt_lights(context=context)
+            await hass.async_block_till_done()
+        return switch._settings[ATTR_COLOR_TEMP_KELVIN]
+
+    assert await color_temp_at(during_hold) == 3000
+
+    await switch.custom_curve_switch.async_turn_off()
+    # Falls back to the default curve (`min_color_temp` after sunset)...
+    assert await color_temp_at(during_hold) == 2000
+    # ...without rewriting the configuration.
+    assert switch._sun_light_settings.color_temp_mode == "snap"
+
+    await switch.custom_curve_switch.async_turn_on()
+    assert await color_temp_at(during_hold) == 3000
+
+
+async def test_custom_curve_switch_adapts_immediately(hass):
+    """Toggling the switch should adapt the lights right away."""
+    switch, _ = await setup_lights_and_switch(
+        hass,
+        {
+            CONF_SUNRISE_TIME: datetime.time(SUNRISE.hour),
+            CONF_SUNSET_TIME: datetime.time(SUNSET.hour),
+            CONF_COLOR_TEMP_MODE: "snap",
+            CONF_SUNSET_COLOR_TEMP: 3000,
+            CONF_SUNSET_COLOR_TEMP_DELAY: datetime.timedelta(hours=2),
+            CONF_MIN_COLOR_TEMP: 2000,
+        },
+    )
+    sunset = SUNSET.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE).astimezone(dt_util.UTC)
+    during_hold = sunset + datetime.timedelta(hours=1)
+
+    with patch(
+        "homeassistant.components.adaptive_lighting_curve.color_and_brightness.utcnow",
+        return_value=during_hold,
+    ):
+        await hass.services.async_call(
+            SWITCH_DOMAIN,
+            SERVICE_TURN_OFF,
+            {ATTR_ENTITY_ID: switch.custom_curve_switch.entity_id},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    assert not switch.custom_curve_switch.is_on
+    assert switch._settings[ATTR_COLOR_TEMP_KELVIN] == 2000
+    last_service_data = switch.manager.last_service_data.get(ENTITY_LIGHT_1)
+    assert last_service_data is not None
+    assert last_service_data[ATTR_COLOR_TEMP_KELVIN] == 2000

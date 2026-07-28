@@ -14,6 +14,7 @@ ICON_MAIN = "mdi:theme-light-dark"
 ICON_BRIGHTNESS = "mdi:brightness-4"
 ICON_COLOR_TEMP = "mdi:sun-thermometer"
 ICON_SLEEP = "mdi:sleep"
+ICON_CUSTOM_CURVE = "mdi:chart-bell-curve-cumulative"
 
 DOMAIN = "adaptive_lighting_curve"
 
@@ -311,6 +312,7 @@ DOCS[CONF_MULTI_LIGHT_INTERCEPT] = (
 SLEEP_MODE_SWITCH = "sleep_mode_switch"
 ADAPT_COLOR_SWITCH = "adapt_color_switch"
 ADAPT_BRIGHTNESS_SWITCH = "adapt_brightness_switch"
+CUSTOM_CURVE_SWITCH = "custom_curve_switch"
 ATTR_ADAPTIVE_LIGHTING_MANAGER = "manager"
 UNDO_UPDATE_LISTENER = "undo_update_listener"
 NONE_STR = "None"

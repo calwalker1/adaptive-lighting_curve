@@ -34,12 +34,13 @@ By automatically adapting the settings of your lights throughout the day, Adapti
 When initially turning on a light that is controlled by Adaptive Lighting, the `light.turn_on` service call is intercepted, and the light's brightness and color are automatically adjusted based on the sun's position.
 After that, the light's brightness and color are automatically adjusted at a regular interval.
 
-Adaptive Lighting provides four switches (using "living_room" as an example component name):
+Adaptive Lighting provides five switches (using "living_room" as an example component name):
 
 - `switch.adaptive_lighting_living_room`: Turn Adaptive Lighting on or off and view current light settings through its attributes.
 - `switch.adaptive_lighting_sleep_mode_living_room`: Activate "sleep mode" 😴 and set custom sleep_brightness and sleep_color_temp.
 - `switch.adaptive_lighting_adapt_brightness_living_room`: Enable or disable brightness adaptation 🔆 for supported lights.
 - `switch.adaptive_lighting_adapt_color_living_room`: Enable or disable color adaptation 🌈 for supported lights.
+- `switch.adaptive_lighting_custom_curve_living_room`: Enable or disable the custom sunset color temperature curve 📈 (`color_temp_mode: fade`/`snap`). Turning it off falls back to the `default` curve.
 
 <!-- OUTPUT:END -->
 
@@ -65,7 +66,7 @@ adaptive_lighting:
 
 ## How It Works
 
-Adaptive Lighting provides four switches for each configuration (using "living_room" as an example):
+Adaptive Lighting provides five switches for each configuration (using "living_room" as an example):
 
 | Switch | Purpose |
 |--------|---------|
@@ -73,6 +74,7 @@ Adaptive Lighting provides four switches for each configuration (using "living_r
 | `switch.adaptive_lighting_sleep_mode_living_room` | Activate sleep mode |
 | `switch.adaptive_lighting_adapt_brightness_living_room` | Enable/disable brightness adaptation |
 | `switch.adaptive_lighting_adapt_color_living_room` | Enable/disable color adaptation |
+| `switch.adaptive_lighting_custom_curve_living_room` | Enable/disable the [custom color temperature curve](advanced/color-temp-curve.md) |
 
 ## Interactive Simulator
 

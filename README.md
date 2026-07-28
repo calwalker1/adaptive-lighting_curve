@@ -30,12 +30,13 @@ https://github.com/basnijholt/adaptive-lighting/assets/6897215/68908f7d-fbf1-499
 When initially turning on a light that is controlled by Adaptive Lighting, the `light.turn_on` service call is intercepted, and the light's brightness and color are automatically adjusted based on the sun's position.
 After that, the light's brightness and color are automatically adjusted at a regular interval.
 
-Adaptive Lighting provides four switches (using "living_room" as an example component name):
+Adaptive Lighting provides five switches (using "living_room" as an example component name):
 
 - `switch.adaptive_lighting_living_room`: Turn Adaptive Lighting on or off and view current light settings through its attributes.
 - `switch.adaptive_lighting_sleep_mode_living_room`: Activate "sleep mode" 😴 and set custom sleep_brightness and sleep_color_temp.
 - `switch.adaptive_lighting_adapt_brightness_living_room`: Enable or disable brightness adaptation 🔆 for supported lights.
 - `switch.adaptive_lighting_adapt_color_living_room`: Enable or disable color adaptation 🌈 for supported lights.
+- `switch.adaptive_lighting_custom_curve_living_room`: Enable or disable the custom sunset color temperature curve 📈 (`color_temp_mode: fade`/`snap`). Turning it off falls back to the `default` curve.
 <!-- SECTION:features:END -->
 
 <!-- SECTION:manual-control:START -->
