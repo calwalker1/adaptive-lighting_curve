@@ -1,6 +1,6 @@
 {
   "domain": "adaptive_lighting_curve",
-  "name": "Adaptive Lighting (Curve Test)",
+  "name": "Adaptive Lighting (variable night curve)",
   "codeowners": ["@calwalker1"],
   "config_flow": true,
   "dependencies": ["light"],

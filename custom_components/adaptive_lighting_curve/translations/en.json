@@ -3,7 +3,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Choose a name for the Adaptive Lighting (Curve Test) instance",
+        "title": "Choose a name for the Adaptive Lighting (variable night curve) instance",
         "description": "Every instance can contain multiple lights!",
         "data": {
           "name": "Name"
